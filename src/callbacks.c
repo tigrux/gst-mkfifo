@@ -16,10 +16,11 @@ typedef void (*CommandFunction) (const char* line);
 extern GHashTable* commands_table;
 extern GstElement* pipeline;
 
-gboolean on_channel_in (GIOChannel* channel);
+gboolean on_channel (GIOChannel* channel, GIOCondition condition);
 char* partition (const char* line, char** head);
+void exec_command (const char* command_name, const char* line);
+gboolean init_channel (void);
 void on_bus_message_eos (void);
-void command_quit (const char* line);
 void on_bus_message_error (GstBus* bus, GstMessage* message);
 static void _vala_array_destroy (gpointer array, gint array_length, GDestroyNotify destroy_func);
 static void _vala_array_free (gpointer array, gint array_length, GDestroyNotify destroy_func);
@@ -38,60 +39,67 @@ static char* string_strip (const char* self) {
 }
 
 
-gboolean on_channel_in (GIOChannel* channel) {
+gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
 	gboolean result = FALSE;
-	char* line;
+	char* command_name;
 	GError * _inner_error_ = NULL;
 	g_return_val_if_fail (channel != NULL, FALSE);
 	g_return_val_if_fail (commands_table != NULL, FALSE);
-	line = NULL;
-	{
-		char* _tmp0_ = NULL;
-		char* _tmp1_;
-		g_io_channel_read_line (channel, &_tmp0_, NULL, NULL, &_inner_error_);
-		line = (_tmp1_ = _tmp0_, _g_free0 (line), _tmp1_);
-		if (_inner_error_ != NULL) {
-			goto __catch0_g_error;
-		}
-	}
-	goto __finally0;
-	__catch0_g_error:
-	{
-		g_clear_error (&_inner_error_);
-		_inner_error_ = NULL;
+	command_name = NULL;
+	if ((condition & G_IO_IN) != 0) {
+		char* line;
+		line = NULL;
 		{
-			g_printerr ("Could not read from channel\n");
+			char* _tmp0_ = NULL;
+			char* _tmp1_;
+			g_io_channel_read_line (channel, &_tmp0_, NULL, NULL, &_inner_error_);
+			line = (_tmp1_ = _tmp0_, _g_free0 (line), _tmp1_);
+			if (_inner_error_ != NULL) {
+				goto __catch0_g_error;
+			}
 		}
-	}
-	__finally0:
-	if (_inner_error_ != NULL) {
+		goto __finally0;
+		__catch0_g_error:
+		{
+			g_clear_error (&_inner_error_);
+			_inner_error_ = NULL;
+			{
+				char* _tmp2_;
+				g_printerr ("Could not read from channel\n");
+				line = (_tmp2_ = NULL, _g_free0 (line), _tmp2_);
+			}
+		}
+		__finally0:
+		if (_inner_error_ != NULL) {
+			_g_free0 (line);
+			_g_free0 (command_name);
+			g_critical ("file %s: line %d: uncaught error: %s (%s, %d)", __FILE__, __LINE__, _inner_error_->message, g_quark_to_string (_inner_error_->domain), _inner_error_->code);
+			g_clear_error (&_inner_error_);
+			return FALSE;
+		}
+		if (line != NULL) {
+			char* _tmp3_;
+			char* _tmp4_ = NULL;
+			char* _tmp5_;
+			char* _tmp6_;
+			char* _tmp7_;
+			line = (_tmp3_ = string_strip (line), _g_free0 (line), _tmp3_);
+			g_print ("Got line '%s'\n", line);
+			line = (_tmp7_ = (_tmp5_ = partition (line, &_tmp4_), command_name = (_tmp6_ = _tmp4_, _g_free0 (command_name), _tmp6_), _tmp5_), _g_free0 (line), _tmp7_);
+			exec_command (command_name, line);
+		}
 		_g_free0 (line);
-		g_critical ("file %s: line %d: uncaught error: %s (%s, %d)", __FILE__, __LINE__, _inner_error_->message, g_quark_to_string (_inner_error_->domain), _inner_error_->code);
-		g_clear_error (&_inner_error_);
-		return FALSE;
 	}
-	if (line != NULL) {
-		char* _tmp2_;
-		char* command_name;
-		char* _tmp3_ = NULL;
-		char* _tmp4_;
-		char* _tmp5_;
-		char* _tmp6_;
-		CommandFunction function;
-		line = (_tmp2_ = string_strip (line), _g_free0 (line), _tmp2_);
-		g_print ("Got line '%s'\n", line);
-		command_name = NULL;
-		line = (_tmp6_ = (_tmp4_ = partition (line, &_tmp3_), command_name = (_tmp5_ = _tmp3_, _g_free0 (command_name), _tmp5_), _tmp4_), _g_free0 (line), _tmp6_);
-		function = g_hash_table_lookup (commands_table, command_name);
-		if (function != NULL) {
-			function (line);
-		} else {
-			g_printerr ("No function for command '%s'\n", command_name);
+	if ((condition & G_IO_HUP) != 0) {
+		if (!init_channel ()) {
+			exec_command ("quit", NULL);
 		}
+		result = FALSE;
 		_g_free0 (command_name);
+		return result;
 	}
 	result = TRUE;
-	_g_free0 (line);
+	_g_free0 (command_name);
 	return result;
 }
 
@@ -99,7 +107,7 @@ gboolean on_channel_in (GIOChannel* channel) {
 void on_bus_message_eos (void) {
 	g_return_if_fail (pipeline != NULL);
 	gst_element_set_state (pipeline, GST_STATE_NULL);
-	command_quit (NULL);
+	exec_command ("quit", NULL);
 }
 
 
@@ -148,6 +156,18 @@ char* partition (const char* line, char** head) {
 	result = g_strdup (parts[1]);
 	parts = (_vala_array_free (parts, parts_length1, (GDestroyNotify) g_free), NULL);
 	return result;
+}
+
+
+void exec_command (const char* command_name, const char* line) {
+	CommandFunction function;
+	g_return_if_fail (command_name != NULL);
+	function = g_hash_table_lookup (commands_table, command_name);
+	if (function != NULL) {
+		function (line);
+	} else {
+		g_printerr ("No function for command '%s'\n", command_name);
+	}
 }
 
 

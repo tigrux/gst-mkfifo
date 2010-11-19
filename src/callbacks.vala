@@ -1,25 +1,28 @@
-bool on_channel_in(IOChannel channel)
+bool on_channel(IOChannel channel, IOCondition condition)
 requires(commands_table != null) {
-    string line = null;
-    try {
-        channel.read_line(out line, null, null);
-    }
-    catch {
-        printerr("Could not read from channel\n");
-    }
+    string command_name = null;
+    if((condition & IOCondition.IN) != 0) {
+        string line;
+        try {
+            channel.read_line(out line, null, null);
+        }
+        catch {
+            printerr("Could not read from channel\n");
+            line = null;
+        }
 
-    if(line != null) {
-        line = line.strip();
-        print("Got line '%s'\n", line);
-        
-        string command_name;
-        line = partition(line, out command_name);
-
-        CommandFunction function = commands_table.lookup(command_name);
-        if(function != null)
-            function(line);
-        else
-            printerr("No function for command '%s'\n", command_name);
+        if(line != null) {
+            line = line.strip();
+            print("Got line '%s'\n", line);
+            line = partition(line, out command_name);
+            exec_command(command_name, line);
+        }
+    }
+    
+    if((condition & IOCondition.HUP) != 0) {
+        if(!init_channel())
+            exec_command("quit", null);
+        return false;
     }
     
     return true;
@@ -29,7 +32,7 @@ requires(commands_table != null) {
 void on_bus_message_eos()
 requires(pipeline != null) {
     pipeline.set_state(Gst.State.NULL);
-    command_quit(null);
+    exec_command("quit", null);
 }
 
 
@@ -48,4 +51,12 @@ string partition(string line, out string head) {
     string[] parts = line.split(" ", 2);
     head = parts[0];
     return parts[1];
+}
+
+void exec_command(string command_name, string? line) {
+    CommandFunction function = commands_table.lookup(command_name);
+    if(function != null)
+        function(line);
+    else
+        printerr("No function for command '%s'\n", command_name);
 }

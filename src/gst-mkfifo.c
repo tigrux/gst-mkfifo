@@ -11,12 +11,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#define _g_io_channel_unref0(var) ((var == NULL) ? NULL : (var = (g_io_channel_unref (var), NULL)))
 #define _g_hash_table_unref0(var) ((var == NULL) ? NULL : (var = (g_hash_table_unref (var), NULL)))
 
 #define TYPE_COMMAND (command_get_type ())
 typedef struct _Command Command;
 #define _g_free0(var) (var = (g_free (var), NULL))
-#define _g_io_channel_unref0(var) ((var == NULL) ? NULL : (var = (g_io_channel_unref (var), NULL)))
 #define _g_main_loop_unref0(var) ((var == NULL) ? NULL : (var = (g_main_loop_unref (var), NULL)))
 
 typedef void (*CommandFunction) (const char* line);
@@ -35,6 +35,9 @@ char* fifo_path = NULL;
 extern GHashTable* commands_table;
 GHashTable* commands_table = NULL;
 
+gboolean init_channel (void);
+gboolean on_channel (GIOChannel* channel, GIOCondition condition);
+static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self);
 gint _vala_main (char** args, int args_length1);
 GType command_get_type (void) G_GNUC_CONST;
 Command* command_dup (const Command* self);
@@ -57,10 +60,55 @@ void command_eos (const char* line);
 static void _command_eos_command_function (const char* line);
 void command_quit (const char* line);
 static void _command_quit_command_function (const char* line);
-gboolean on_channel_in (GIOChannel* channel);
-static gboolean _on_channel_in_gio_func (GIOChannel* source, GIOCondition condition, gpointer self);
 
 extern const Command commands[9];
+
+
+static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self) {
+	gboolean result;
+	result = on_channel (source, condition);
+	return result;
+}
+
+
+gboolean init_channel (void) {
+	gboolean result = FALSE;
+	GIOChannel* channel;
+	GError * _inner_error_ = NULL;
+	channel = NULL;
+	{
+		GIOChannel* _tmp0_;
+		GIOChannel* _tmp1_;
+		_tmp0_ = g_io_channel_new_file (fifo_path, "r", &_inner_error_);
+		if (_inner_error_ != NULL) {
+			goto __catch2_g_error;
+		}
+		channel = (_tmp1_ = _tmp0_, _g_io_channel_unref0 (channel), _tmp1_);
+	}
+	goto __finally2;
+	__catch2_g_error:
+	{
+		g_clear_error (&_inner_error_);
+		_inner_error_ = NULL;
+		{
+			g_printerr ("Could not create a channel to '%s'\n", fifo_path);
+			result = FALSE;
+			_g_io_channel_unref0 (channel);
+			return result;
+		}
+	}
+	__finally2:
+	if (_inner_error_ != NULL) {
+		_g_io_channel_unref0 (channel);
+		g_critical ("file %s: line %d: uncaught error: %s (%s, %d)", __FILE__, __LINE__, _inner_error_->message, g_quark_to_string (_inner_error_->domain), _inner_error_->code);
+		g_clear_error (&_inner_error_);
+		return FALSE;
+	}
+	g_io_add_watch (channel, G_IO_IN | G_IO_HUP, _on_channel_gio_func, NULL);
+	result = TRUE;
+	_g_io_channel_unref0 (channel);
+	return result;
+}
 
 
 static void _command_parse_command_function (const char* line) {
@@ -103,20 +151,11 @@ static void _command_quit_command_function (const char* line) {
 }
 
 
-static gboolean _on_channel_in_gio_func (GIOChannel* source, GIOCondition condition, gpointer self) {
-	gboolean result;
-	result = on_channel_in (source);
-	return result;
-}
-
-
 gint _vala_main (char** args, int args_length1) {
 	gint result = 0;
 	GHashTable* _tmp0_;
 	char* _tmp2_;
-	GIOChannel* channel;
-	GMainLoop* _tmp5_;
-	GError * _inner_error_ = NULL;
+	GMainLoop* _tmp3_;
 	gst_init (&args_length1, &args);
 	if (args_length1 != 2) {
 		g_printerr ("Usage: %s <fifo>\n", args[0]);
@@ -149,41 +188,14 @@ gint _vala_main (char** args, int args_length1) {
 		result = 1;
 		return result;
 	}
-	channel = NULL;
-	{
-		GIOChannel* _tmp3_;
-		GIOChannel* _tmp4_;
-		_tmp3_ = g_io_channel_new_file (fifo_path, "r", &_inner_error_);
-		if (_inner_error_ != NULL) {
-			goto __catch2_g_error;
-		}
-		channel = (_tmp4_ = _tmp3_, _g_io_channel_unref0 (channel), _tmp4_);
+	if (!init_channel ()) {
+		result = 1;
+		return result;
 	}
-	goto __finally2;
-	__catch2_g_error:
-	{
-		g_clear_error (&_inner_error_);
-		_inner_error_ = NULL;
-		{
-			g_printerr ("Could not create a channel to '%s'\n", fifo_path);
-			result = 1;
-			_g_io_channel_unref0 (channel);
-			return result;
-		}
-	}
-	__finally2:
-	if (_inner_error_ != NULL) {
-		_g_io_channel_unref0 (channel);
-		g_critical ("file %s: line %d: uncaught error: %s (%s, %d)", __FILE__, __LINE__, _inner_error_->message, g_quark_to_string (_inner_error_->domain), _inner_error_->code);
-		g_clear_error (&_inner_error_);
-		return 0;
-	}
-	g_io_add_watch (channel, G_IO_IN, _on_channel_in_gio_func, NULL);
-	loop = (_tmp5_ = g_main_loop_new (NULL, FALSE), _g_main_loop_unref0 (loop), _tmp5_);
+	loop = (_tmp3_ = g_main_loop_new (NULL, FALSE), _g_main_loop_unref0 (loop), _tmp3_);
 	g_main_loop_run (loop);
 	unlink (fifo_path);
 	result = 0;
-	_g_io_channel_unref0 (channel);
 	return result;
 }
 

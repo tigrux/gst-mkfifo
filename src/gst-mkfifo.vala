@@ -3,6 +3,18 @@ MainLoop loop;
 string fifo_path;
 HashTable<string, CommandFunction> commands_table;
 
+bool init_channel() {
+    IOChannel channel;
+    try {
+        channel = new IOChannel.file(fifo_path, "r");
+    }
+    catch {
+        printerr("Could not create a channel to '%s'\n", fifo_path);
+        return false;
+    }
+    channel.add_watch(IOCondition.IN | IOCondition.HUP, on_channel);
+    return true;
+}
 
 int main(string[] args) {
     Gst.init(ref args);
@@ -22,16 +34,9 @@ int main(string[] args) {
         printerr("Could not create the fifo '%s'\n", fifo_path);
         return 1;
     }
-    
-    IOChannel channel;
-    try {
-        channel = new IOChannel.file(fifo_path, "r");
-    }
-    catch {
-        printerr("Could not create a channel to '%s'\n", fifo_path);
+
+    if(!init_channel())
         return 1;
-    }
-    channel.add_watch(IOCondition.IN, on_channel_in);
 
     loop = new MainLoop(null, false);
     loop.run();
