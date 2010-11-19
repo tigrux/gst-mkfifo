@@ -3,6 +3,7 @@ MainLoop loop;
 string fifo_path;
 HashTable<string, CommandFunction> commands_table;
 
+
 bool init_channel() {
     IOChannel channel;
     try {
@@ -15,6 +16,7 @@ bool init_channel() {
     channel.add_watch(IOCondition.IN | IOCondition.HUP, on_channel);
     return true;
 }
+
 
 int main(string[] args) {
     Gst.init(ref args);

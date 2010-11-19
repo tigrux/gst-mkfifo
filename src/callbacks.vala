@@ -53,6 +53,7 @@ string partition(string line, out string head) {
     return parts[1];
 }
 
+
 void exec_command(string command_name, string? line) {
     CommandFunction function = commands_table.lookup(command_name);
     if(function != null)
