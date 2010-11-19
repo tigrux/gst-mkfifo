@@ -41,13 +41,6 @@ static char* string_strip (const char* self) {
 gboolean on_channel_in (GIOChannel* channel) {
 	gboolean result = FALSE;
 	char* line;
-	char* _tmp2_;
-	char* command_name;
-	char* _tmp3_ = NULL;
-	char* _tmp4_;
-	char* _tmp5_;
-	char* _tmp6_;
-	CommandFunction function;
 	GError * _inner_error_ = NULL;
 	g_return_val_if_fail (channel != NULL, FALSE);
 	g_return_val_if_fail (commands_table != NULL, FALSE);
@@ -68,9 +61,6 @@ gboolean on_channel_in (GIOChannel* channel) {
 		_inner_error_ = NULL;
 		{
 			g_printerr ("Could not read from channel\n");
-			result = TRUE;
-			_g_free0 (line);
-			return result;
 		}
 	}
 	__finally0:
@@ -80,18 +70,27 @@ gboolean on_channel_in (GIOChannel* channel) {
 		g_clear_error (&_inner_error_);
 		return FALSE;
 	}
-	line = (_tmp2_ = string_strip (line), _g_free0 (line), _tmp2_);
-	g_print ("Got line '%s'\n", line);
-	command_name = NULL;
-	line = (_tmp6_ = (_tmp4_ = partition (line, &_tmp3_), command_name = (_tmp5_ = _tmp3_, _g_free0 (command_name), _tmp5_), _tmp4_), _g_free0 (line), _tmp6_);
-	function = g_hash_table_lookup (commands_table, command_name);
-	if (function != NULL) {
-		function (line);
-	} else {
-		g_printerr ("No function for command '%s'\n", command_name);
+	if (line != NULL) {
+		char* _tmp2_;
+		char* command_name;
+		char* _tmp3_ = NULL;
+		char* _tmp4_;
+		char* _tmp5_;
+		char* _tmp6_;
+		CommandFunction function;
+		line = (_tmp2_ = string_strip (line), _g_free0 (line), _tmp2_);
+		g_print ("Got line '%s'\n", line);
+		command_name = NULL;
+		line = (_tmp6_ = (_tmp4_ = partition (line, &_tmp3_), command_name = (_tmp5_ = _tmp3_, _g_free0 (command_name), _tmp5_), _tmp4_), _g_free0 (line), _tmp6_);
+		function = g_hash_table_lookup (commands_table, command_name);
+		if (function != NULL) {
+			function (line);
+		} else {
+			g_printerr ("No function for command '%s'\n", command_name);
+		}
+		_g_free0 (command_name);
 	}
 	result = TRUE;
-	_g_free0 (command_name);
 	_g_free0 (line);
 	return result;
 }

@@ -6,20 +6,21 @@ requires(commands_table != null) {
     }
     catch {
         printerr("Could not read from channel\n");
-        return true;
     }
 
-    line = line.strip();
-    print("Got line '%s'\n", line);
-    
-    string command_name;
-    line = partition(line, out command_name);
+    if(line != null) {
+        line = line.strip();
+        print("Got line '%s'\n", line);
+        
+        string command_name;
+        line = partition(line, out command_name);
 
-    CommandFunction function = commands_table.lookup(command_name);
-    if(function != null)
-        function(line);
-    else
-        printerr("No function for command '%s'\n", command_name);
+        CommandFunction function = commands_table.lookup(command_name);
+        if(function != null)
+            function(line);
+        else
+            printerr("No function for command '%s'\n", command_name);
+    }
     
     return true;
 }
