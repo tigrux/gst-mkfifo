@@ -39,3 +39,5 @@ send seek 60
 sleep 5
 
 send eos
+
+send quit
