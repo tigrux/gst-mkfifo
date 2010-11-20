@@ -20,8 +20,9 @@ requires(commands_table != null) {
     }
     
     if((condition & IOCondition.HUP) != 0) {
-        if(!init_channel())
-            exec_command("quit", null);
+        if(command_name != "quit")
+            if(!init_channel())
+                exec_command("quit", null);
         return false;
     }
     

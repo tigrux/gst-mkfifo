@@ -25,6 +25,7 @@ void on_bus_message_error (GstBus* bus, GstMessage* message);
 static void _vala_array_destroy (gpointer array, gint array_length, GDestroyNotify destroy_func);
 static void _vala_array_free (gpointer array, gint array_length, GDestroyNotify destroy_func);
 static gint _vala_array_length (gpointer array);
+static int _vala_strcmp0 (const char * str1, const char * str2);
 
 
 
@@ -91,8 +92,10 @@ gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
 		_g_free0 (line);
 	}
 	if ((condition & G_IO_HUP) != 0) {
-		if (!init_channel ()) {
-			exec_command ("quit", NULL);
+		if (_vala_strcmp0 (command_name, "quit") != 0) {
+			if (!init_channel ()) {
+				exec_command ("quit", NULL);
+			}
 		}
 		result = FALSE;
 		_g_free0 (command_name);
@@ -198,6 +201,17 @@ static gint _vala_array_length (gpointer array) {
 		}
 	}
 	return length;
+}
+
+
+static int _vala_strcmp0 (const char * str1, const char * str2) {
+	if (str1 == NULL) {
+		return -(str1 != str2);
+	}
+	if (str2 == NULL) {
+		return str1 != str2;
+	}
+	return strcmp (str1, str2);
 }
 
 

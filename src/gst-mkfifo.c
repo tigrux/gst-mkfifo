@@ -34,6 +34,8 @@ extern char* fifo_path;
 char* fifo_path = NULL;
 extern GHashTable* commands_table;
 GHashTable* commands_table = NULL;
+extern GIOChannel* channel;
+GIOChannel* channel = NULL;
 
 gboolean init_channel (void);
 gboolean on_channel (GIOChannel* channel, GIOCondition condition);
@@ -73,9 +75,7 @@ static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition
 
 gboolean init_channel (void) {
 	gboolean result = FALSE;
-	GIOChannel* channel;
 	GError * _inner_error_ = NULL;
-	channel = NULL;
 	{
 		GIOChannel* _tmp0_;
 		GIOChannel* _tmp1_;
@@ -93,20 +93,17 @@ gboolean init_channel (void) {
 		{
 			g_printerr ("Could not create a channel to '%s'\n", fifo_path);
 			result = FALSE;
-			_g_io_channel_unref0 (channel);
 			return result;
 		}
 	}
 	__finally2:
 	if (_inner_error_ != NULL) {
-		_g_io_channel_unref0 (channel);
 		g_critical ("file %s: line %d: uncaught error: %s (%s, %d)", __FILE__, __LINE__, _inner_error_->message, g_quark_to_string (_inner_error_->domain), _inner_error_->code);
 		g_clear_error (&_inner_error_);
 		return FALSE;
 	}
 	g_io_add_watch (channel, G_IO_IN | G_IO_HUP, _on_channel_gio_func, NULL);
 	result = TRUE;
-	_g_io_channel_unref0 (channel);
 	return result;
 }
 

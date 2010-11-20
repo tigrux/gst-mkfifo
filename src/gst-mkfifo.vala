@@ -2,10 +2,9 @@ Gst.Element pipeline;
 MainLoop loop;
 string fifo_path;
 HashTable<string, CommandFunction> commands_table;
-
+IOChannel channel;
 
 bool init_channel() {
-    IOChannel channel;
     try {
         channel = new IOChannel.file(fifo_path, "r");
     }
