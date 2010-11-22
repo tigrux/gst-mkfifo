@@ -33,7 +33,6 @@ requires(commands_table != null) {
 void on_bus_message_eos()
 requires(pipeline != null) {
     pipeline.set_state(Gst.State.NULL);
-    exec_command("quit", null);
 }
 
 
