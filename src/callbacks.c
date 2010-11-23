@@ -141,6 +141,18 @@ void on_bus_message_error (GstBus* bus, GstMessage* message) {
 }
 
 
+void exec_command (const char* command_name, const char* line) {
+	CommandFunction function;
+	g_return_if_fail (command_name != NULL);
+	function = g_hash_table_lookup (commands_table, command_name);
+	if (function != NULL) {
+		function (line);
+	} else {
+		g_printerr ("No function for command '%s'\n", command_name);
+	}
+}
+
+
 char* partition (const char* line, char** head) {
 	char* result = NULL;
 	gint parts_length1;
@@ -158,18 +170,6 @@ char* partition (const char* line, char** head) {
 	result = g_strdup (parts[1]);
 	parts = (_vala_array_free (parts, parts_length1, (GDestroyNotify) g_free), NULL);
 	return result;
-}
-
-
-void exec_command (const char* command_name, const char* line) {
-	CommandFunction function;
-	g_return_if_fail (command_name != NULL);
-	function = g_hash_table_lookup (commands_table, command_name);
-	if (function != NULL) {
-		function (line);
-	} else {
-		g_printerr ("No function for command '%s'\n", command_name);
-	}
 }
 
 

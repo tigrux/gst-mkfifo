@@ -48,13 +48,6 @@ void on_bus_message_error(Gst.Bus bus, Gst.Message message) {
 }
 
 
-string partition(string line, out string head) {
-    string[] parts = line.split(" ", 2);
-    head = parts[0];
-    return parts[1];
-}
-
-
 void exec_command(string command_name, string? line) {
     CommandFunction function = commands_table.lookup(command_name);
     if(function != null)
@@ -62,3 +55,11 @@ void exec_command(string command_name, string? line) {
     else
         printerr("No function for command '%s'\n", command_name);
 }
+
+
+string partition(string line, out string head) {
+    string[] parts = line.split(" ", 2);
+    head = parts[0];
+    return parts[1];
+}
+

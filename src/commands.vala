@@ -20,12 +20,21 @@ const Command commands[] = {
 };
 
 
+void init_commands()
+requires(commands_table == null) {
+    commands_table = new HashTable<string, CommandFunction> (str_hash, str_equal);
+    for(int i=0; commands[i].name != null; i++)
+        commands_table.insert(commands[i].name, commands[i].function);
+}
+
+
 void command_parse(string line) {
     try {
         pipeline = Gst.parse_launch(line);
     }
     catch {
         printerr("Could not parse the pipeline '%s'\n", line);
+        pipeline = null;
     }
     if(pipeline != null) {
         Gst.Bus bus = pipeline.get_bus();
@@ -71,9 +80,8 @@ void command_seek(string line) {
     else
         direction = 0;
 
-    if(direction != 0) {
+    if(direction != 0)
         line = line.next_char();
-    }
 
     int64 useconds = (int64)(line.to_double()*Gst.SECOND);
     int64 position;

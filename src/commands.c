@@ -12,6 +12,7 @@
 #define TYPE_COMMAND (command_get_type ())
 typedef struct _Command Command;
 #define _g_free0(var) (var = (g_free (var), NULL))
+#define _g_hash_table_unref0(var) ((var == NULL) ? NULL : (var = (g_hash_table_unref (var), NULL)))
 #define _gst_object_unref0(var) ((var == NULL) ? NULL : (var = (gst_object_unref (var), NULL)))
 #define _gst_event_unref0(var) ((var == NULL) ? NULL : (var = (gst_event_unref (var), NULL)))
 
@@ -22,6 +23,7 @@ struct _Command {
 };
 
 
+extern GHashTable* commands_table;
 extern GstElement* pipeline;
 extern GMainLoop* loop;
 
@@ -46,6 +48,7 @@ void command_eos (const char* line);
 static void _command_eos_command_function (const char* line);
 void command_exit (const char* line);
 static void _command_exit_command_function (const char* line);
+void init_commands (void);
 void on_bus_message_eos (void);
 static void _on_bus_message_eos_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
 void on_bus_message_error (GstBus* bus, GstMessage* message);
@@ -130,6 +133,31 @@ static void _command_exit_command_function (const char* line) {
 }
 
 
+void init_commands (void) {
+	GHashTable* _tmp0_;
+	g_return_if_fail (commands_table == NULL);
+	commands_table = (_tmp0_ = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL), _g_hash_table_unref0 (commands_table), _tmp0_);
+	{
+		gint i;
+		i = 0;
+		{
+			gboolean _tmp1_;
+			_tmp1_ = TRUE;
+			while (TRUE) {
+				if (!_tmp1_) {
+					i++;
+				}
+				_tmp1_ = FALSE;
+				if (!(commands[i].name != NULL)) {
+					break;
+				}
+				g_hash_table_insert (commands_table, g_strdup (commands[i].name), commands[i].function);
+			}
+		}
+	}
+}
+
+
 static void _on_bus_message_eos_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self) {
 	on_bus_message_eos ();
 }
@@ -158,7 +186,9 @@ void command_parse (const char* line) {
 		g_clear_error (&_inner_error_);
 		_inner_error_ = NULL;
 		{
+			GstElement* _tmp2_;
 			g_printerr ("Could not parse the pipeline '%s'\n", line);
+			pipeline = (_tmp2_ = NULL, _gst_object_unref0 (pipeline), _tmp2_);
 		}
 	}
 	__finally1:

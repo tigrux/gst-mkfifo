@@ -13,19 +13,10 @@
 #include <sys/types.h>
 
 #define _g_io_channel_unref0(var) ((var == NULL) ? NULL : (var = (g_io_channel_unref (var), NULL)))
-#define _g_hash_table_unref0(var) ((var == NULL) ? NULL : (var = (g_hash_table_unref (var), NULL)))
-
-#define TYPE_COMMAND (command_get_type ())
-typedef struct _Command Command;
 #define _g_free0(var) (var = (g_free (var), NULL))
 #define _g_main_loop_unref0(var) ((var == NULL) ? NULL : (var = (g_main_loop_unref (var), NULL)))
 
 typedef void (*CommandFunction) (const char* line);
-struct _Command {
-	char* name;
-	CommandFunction function;
-};
-
 
 extern GstElement* pipeline;
 GstElement* pipeline = NULL;
@@ -42,29 +33,10 @@ gboolean init_channel (void);
 gboolean on_channel (GIOChannel* channel, GIOCondition condition);
 static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self);
 gint _vala_main (char** args, int args_length1);
-GType command_get_type (void) G_GNUC_CONST;
-Command* command_dup (const Command* self);
-void command_free (Command* self);
-void command_copy (const Command* self, Command* dest);
-void command_destroy (Command* self);
-void command_parse (const char* line);
-static void _command_parse_command_function (const char* line);
-void command_play (const char* line);
-static void _command_play_command_function (const char* line);
-void command_pause (const char* line);
-static void _command_pause_command_function (const char* line);
-void command_ready (const char* line);
-static void _command_ready_command_function (const char* line);
-void command_null (const char* line);
-static void _command_null_command_function (const char* line);
-void command_seek (const char* line);
-static void _command_seek_command_function (const char* line);
-void command_eos (const char* line);
-static void _command_eos_command_function (const char* line);
-void command_exit (const char* line);
-static void _command_exit_command_function (const char* line);
+void init_commands (void);
+static void _lambda0_ (void* key);
+static void __lambda0__gh_func (void* key, void* value, gpointer self);
 
-extern const Command commands[9];
 
 
 static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self) {
@@ -97,77 +69,30 @@ gboolean init_channel (void) {
 }
 
 
-static void _command_parse_command_function (const char* line) {
-	command_parse (line);
+static void _lambda0_ (void* key) {
+	g_print ("  %s\n", (const char*) key);
 }
 
 
-static void _command_play_command_function (const char* line) {
-	command_play (line);
-}
-
-
-static void _command_pause_command_function (const char* line) {
-	command_pause (line);
-}
-
-
-static void _command_ready_command_function (const char* line) {
-	command_ready (line);
-}
-
-
-static void _command_null_command_function (const char* line) {
-	command_null (line);
-}
-
-
-static void _command_seek_command_function (const char* line) {
-	command_seek (line);
-}
-
-
-static void _command_eos_command_function (const char* line) {
-	command_eos (line);
-}
-
-
-static void _command_exit_command_function (const char* line) {
-	command_exit (line);
+static void __lambda0__gh_func (void* key, void* value, gpointer self) {
+	_lambda0_ (key);
 }
 
 
 gint _vala_main (char** args, int args_length1) {
 	gint result = 0;
-	GHashTable* _tmp0_;
-	char* _tmp2_;
-	GMainLoop* _tmp3_;
+	char* _tmp0_;
+	GMainLoop* _tmp1_;
 	gst_init (&args_length1, &args);
+	init_commands ();
 	if (args_length1 != 2) {
 		g_printerr ("Usage: %s <fifo>\n", args[0]);
+		g_printerr ("Where <fifo> can be written the following commands:\n");
+		g_hash_table_foreach (commands_table, __lambda0__gh_func, NULL);
 		result = 1;
 		return result;
 	}
-	commands_table = (_tmp0_ = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL), _g_hash_table_unref0 (commands_table), _tmp0_);
-	{
-		gint i;
-		i = 0;
-		{
-			gboolean _tmp1_;
-			_tmp1_ = TRUE;
-			while (TRUE) {
-				if (!_tmp1_) {
-					i++;
-				}
-				_tmp1_ = FALSE;
-				if (!(commands[i].name != NULL)) {
-					break;
-				}
-				g_hash_table_insert (commands_table, g_strdup (commands[i].name), commands[i].function);
-			}
-		}
-	}
-	fifo_path = (_tmp2_ = g_strdup (args[1]), _g_free0 (fifo_path), _tmp2_);
+	fifo_path = (_tmp0_ = g_strdup (args[1]), _g_free0 (fifo_path), _tmp0_);
 	if (mkfifo (fifo_path, (mode_t) 0666) != 0) {
 		g_printerr ("Could not create the fifo '%s'\n", fifo_path);
 		result = 1;
@@ -177,7 +102,7 @@ gint _vala_main (char** args, int args_length1) {
 		result = 1;
 		return result;
 	}
-	loop = (_tmp3_ = g_main_loop_new (NULL, FALSE), _g_main_loop_unref0 (loop), _tmp3_);
+	loop = (_tmp1_ = g_main_loop_new (NULL, FALSE), _g_main_loop_unref0 (loop), _tmp1_);
 	g_main_loop_run (loop);
 	unlink (fifo_path);
 	result = 0;
