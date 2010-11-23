@@ -40,4 +40,3 @@ sleep 5
 
 send eos
 
-send quit

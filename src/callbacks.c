@@ -109,7 +109,7 @@ gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
 void on_bus_message_eos (void) {
 	g_return_if_fail (pipeline != NULL);
 	gst_element_set_state (pipeline, GST_STATE_NULL);
-	exec_command ("quit", NULL);
+	exec_command ("exit", NULL);
 }
 
 

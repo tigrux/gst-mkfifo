@@ -61,8 +61,8 @@ void command_seek (const char* line);
 static void _command_seek_command_function (const char* line);
 void command_eos (const char* line);
 static void _command_eos_command_function (const char* line);
-void command_quit (const char* line);
-static void _command_quit_command_function (const char* line);
+void command_exit (const char* line);
+static void _command_exit_command_function (const char* line);
 
 extern const Command commands[9];
 
@@ -132,8 +132,8 @@ static void _command_eos_command_function (const char* line) {
 }
 
 
-static void _command_quit_command_function (const char* line) {
-	command_quit (line);
+static void _command_exit_command_function (const char* line) {
+	command_exit (line);
 }
 
 

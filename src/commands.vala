@@ -15,7 +15,7 @@ const Command commands[] = {
     {"null", command_null},
     {"seek", command_seek},
     {"eos", command_eos},
-    {"quit", command_quit},
+    {"exit", command_exit},
     {null, null}
 };
 
@@ -79,7 +79,7 @@ requires(pipeline != null) {
 }
 
 
-void command_quit(string? line)
+void command_exit(string? line)
 requires(loop != null) {
     loop.quit();
 }

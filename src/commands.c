@@ -44,14 +44,14 @@ void command_seek (const char* line);
 static void _command_seek_command_function (const char* line);
 void command_eos (const char* line);
 static void _command_eos_command_function (const char* line);
-void command_quit (const char* line);
-static void _command_quit_command_function (const char* line);
+void command_exit (const char* line);
+static void _command_exit_command_function (const char* line);
 void on_bus_message_eos (void);
 static void _on_bus_message_eos_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
 void on_bus_message_error (GstBus* bus, GstMessage* message);
 static void _on_bus_message_error_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
 
-const Command commands[9] = {{"parse", _command_parse_command_function}, {"play", _command_play_command_function}, {"pause", _command_pause_command_function}, {"ready", _command_ready_command_function}, {"null", _command_null_command_function}, {"seek", _command_seek_command_function}, {"eos", _command_eos_command_function}, {"quit", _command_quit_command_function}, {NULL, NULL}};
+const Command commands[9] = {{"parse", _command_parse_command_function}, {"play", _command_play_command_function}, {"pause", _command_pause_command_function}, {"ready", _command_ready_command_function}, {"null", _command_null_command_function}, {"seek", _command_seek_command_function}, {"eos", _command_eos_command_function}, {"exit", _command_exit_command_function}, {NULL, NULL}};
 
 
 void command_copy (const Command* self, Command* dest) {
@@ -125,8 +125,8 @@ static void _command_eos_command_function (const char* line) {
 }
 
 
-static void _command_quit_command_function (const char* line) {
-	command_quit (line);
+static void _command_exit_command_function (const char* line) {
+	command_exit (line);
 }
 
 
@@ -224,7 +224,7 @@ void command_eos (const char* line) {
 }
 
 
-void command_quit (const char* line) {
+void command_exit (const char* line) {
 	g_return_if_fail (loop != NULL);
 	g_main_loop_quit (loop);
 }
