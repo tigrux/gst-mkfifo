@@ -36,6 +36,7 @@ void command_parse(string line) {
         printerr("Could not parse the pipeline '%s'\n", line);
         pipeline = null;
     }
+
     if(pipeline != null) {
         Gst.Bus bus = pipeline.get_bus();
         bus.add_signal_watch();
@@ -71,7 +72,7 @@ requires(pipeline != null) {
 
 void command_seek(string line) {
     int direction;
-    
+
     if(line.has_prefix("+"))
         direction = 1;
     else
@@ -85,7 +86,7 @@ void command_seek(string line) {
 
     int64 useconds = (int64)(line.to_double()*Gst.SECOND);
     int64 position;
-    
+
     if(direction != 0) {
         Gst.Format time_format = Gst.Format.TIME;
         if(pipeline.query_position(ref time_format, out position))

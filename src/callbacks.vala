@@ -19,13 +19,13 @@ requires(commands_table != null) {
                 exec_command(command_name, line);
         }
     }
-    
+
     if((condition & IOCondition.HUP) != 0) {
         if(!init_channel())
             exec_command("quit", null);
         return false;
     }
-    
+
     return true;
 }
 
