@@ -27,11 +27,12 @@ void command_parse(string line) {
     catch {
         printerr("Could not parse the pipeline '%s'\n", line);
     }
-
-    Gst.Bus bus = pipeline.get_bus();
-    bus.add_signal_watch();
-    bus.message["eos"].connect(on_bus_message_eos);
-    bus.message["error"].connect(on_bus_message_error);
+    if(pipeline != null) {
+        Gst.Bus bus = pipeline.get_bus();
+        bus.add_signal_watch();
+        bus.message["eos"].connect(on_bus_message_eos);
+        bus.message["error"].connect(on_bus_message_error);
+    }
 }
 
 

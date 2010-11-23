@@ -2,18 +2,18 @@ Gst.Element pipeline;
 MainLoop loop;
 string fifo_path;
 HashTable<string, CommandFunction> commands_table;
-IOChannel channel;
 
 bool init_channel() {
-    try {
-        channel = new IOChannel.file(fifo_path, "r");
+    int fd = Posix.open(fifo_path, Posix.O_NONBLOCK | Posix.O_RDONLY);
+    if(fd >= 0) {
+        IOChannel channel = new IOChannel.unix_new(fd);
+        channel.add_watch(IOCondition.IN | IOCondition.HUP, on_channel);
+        return true;
     }
-    catch {
-        printerr("Could not create a channel to '%s'\n", fifo_path);
+    else {
+        print("Could not open '%s' for reading\n", fifo_path);
         return false;
     }
-    channel.add_watch(IOCondition.IN | IOCondition.HUP, on_channel);
-    return true;
 }
 
 
@@ -30,7 +30,6 @@ int main(string[] args) {
         commands_table.insert(commands[i].name, commands[i].function);
 
     fifo_path = args[1];
-    Posix.unlink(fifo_path);
     if(Posix.mkfifo(fifo_path, 0666) != 0) {
         printerr("Could not create the fifo '%s'\n", fifo_path);
         return 1;

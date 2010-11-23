@@ -7,9 +7,10 @@
 #include <gst/gst.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define _g_io_channel_unref0(var) ((var == NULL) ? NULL : (var = (g_io_channel_unref (var), NULL)))
 #define _g_hash_table_unref0(var) ((var == NULL) ? NULL : (var = (g_hash_table_unref (var), NULL)))
@@ -34,8 +35,6 @@ extern char* fifo_path;
 char* fifo_path = NULL;
 extern GHashTable* commands_table;
 GHashTable* commands_table = NULL;
-extern GIOChannel* channel;
-GIOChannel* channel = NULL;
 
 gboolean init_channel (void);
 gboolean on_channel (GIOChannel* channel, GIOCondition condition);
@@ -75,36 +74,20 @@ static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition
 
 gboolean init_channel (void) {
 	gboolean result = FALSE;
-	GError * _inner_error_ = NULL;
-	{
-		GIOChannel* _tmp0_;
-		GIOChannel* _tmp1_;
-		_tmp0_ = g_io_channel_new_file (fifo_path, "r", &_inner_error_);
-		if (_inner_error_ != NULL) {
-			goto __catch2_g_error;
-		}
-		channel = (_tmp1_ = _tmp0_, _g_io_channel_unref0 (channel), _tmp1_);
+	gint fd;
+	fd = open (fifo_path, O_NONBLOCK | O_RDONLY, 0);
+	if (fd >= 0) {
+		GIOChannel* channel;
+		channel = g_io_channel_unix_new (fd);
+		g_io_add_watch (channel, G_IO_IN | G_IO_HUP, _on_channel_gio_func, NULL);
+		result = TRUE;
+		_g_io_channel_unref0 (channel);
+		return result;
+	} else {
+		g_print ("Could not open '%s' for reading\n", fifo_path);
+		result = FALSE;
+		return result;
 	}
-	goto __finally2;
-	__catch2_g_error:
-	{
-		g_clear_error (&_inner_error_);
-		_inner_error_ = NULL;
-		{
-			g_printerr ("Could not create a channel to '%s'\n", fifo_path);
-			result = FALSE;
-			return result;
-		}
-	}
-	__finally2:
-	if (_inner_error_ != NULL) {
-		g_critical ("file %s: line %d: uncaught error: %s (%s, %d)", __FILE__, __LINE__, _inner_error_->message, g_quark_to_string (_inner_error_->domain), _inner_error_->code);
-		g_clear_error (&_inner_error_);
-		return FALSE;
-	}
-	g_io_add_watch (channel, G_IO_IN | G_IO_HUP, _on_channel_gio_func, NULL);
-	result = TRUE;
-	return result;
 }
 
 
@@ -179,7 +162,6 @@ gint _vala_main (char** args, int args_length1) {
 		}
 	}
 	fifo_path = (_tmp2_ = g_strdup (args[1]), _g_free0 (fifo_path), _tmp2_);
-	unlink (fifo_path);
 	if (mkfifo (fifo_path, (mode_t) 0666) != 0) {
 		g_printerr ("Could not create the fifo '%s'\n", fifo_path);
 		result = 1;

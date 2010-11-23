@@ -141,7 +141,6 @@ static void _on_bus_message_error_gst_bus_message (GstBus* _sender, GstMessage* 
 
 
 void command_parse (const char* line) {
-	GstBus* bus;
 	GError * _inner_error_ = NULL;
 	g_return_if_fail (line != NULL);
 	{
@@ -168,11 +167,14 @@ void command_parse (const char* line) {
 		g_clear_error (&_inner_error_);
 		return;
 	}
-	bus = gst_element_get_bus (pipeline);
-	gst_bus_add_signal_watch (bus);
-	g_signal_connect (bus, "message::eos", (GCallback) _on_bus_message_eos_gst_bus_message, NULL);
-	g_signal_connect (bus, "message::error", (GCallback) _on_bus_message_error_gst_bus_message, NULL);
-	_gst_object_unref0 (bus);
+	if (pipeline != NULL) {
+		GstBus* bus;
+		bus = gst_element_get_bus (pipeline);
+		gst_bus_add_signal_watch (bus);
+		g_signal_connect (bus, "message::eos", (GCallback) _on_bus_message_eos_gst_bus_message, NULL);
+		g_signal_connect (bus, "message::error", (GCallback) _on_bus_message_error_gst_bus_message, NULL);
+		_gst_object_unref0 (bus);
+	}
 }
 
 

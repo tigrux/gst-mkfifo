@@ -15,7 +15,8 @@ requires(commands_table != null) {
             line = line.strip();
             print("Got line '%s'\n", line);
             line = partition(line, out command_name);
-            exec_command(command_name, line);
+            if(command_name != null)
+                exec_command(command_name, line);
         }
     }
     

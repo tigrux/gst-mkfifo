@@ -87,7 +87,9 @@ gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
 			line = (_tmp3_ = string_strip (line), _g_free0 (line), _tmp3_);
 			g_print ("Got line '%s'\n", line);
 			line = (_tmp7_ = (_tmp5_ = partition (line, &_tmp4_), command_name = (_tmp6_ = _tmp4_, _g_free0 (command_name), _tmp6_), _tmp5_), _g_free0 (line), _tmp7_);
-			exec_command (command_name, line);
+			if (command_name != NULL) {
+				exec_command (command_name, line);
+			}
 		}
 		_g_free0 (line);
 	}
