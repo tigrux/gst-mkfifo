@@ -7,10 +7,10 @@
 #include <gst/gst.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #define _g_io_channel_unref0(var) ((var == NULL) ? NULL : (var = (g_io_channel_unref (var), NULL)))
 #define _g_hash_table_unref0(var) ((var == NULL) ? NULL : (var = (g_hash_table_unref (var), NULL)))
@@ -35,6 +35,8 @@ extern char* fifo_path;
 char* fifo_path = NULL;
 extern GHashTable* commands_table;
 GHashTable* commands_table = NULL;
+extern GIOChannel* channel;
+GIOChannel* channel = NULL;
 
 gboolean init_channel (void);
 gboolean on_channel (GIOChannel* channel, GIOCondition condition);
@@ -75,13 +77,17 @@ static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition
 gboolean init_channel (void) {
 	gboolean result = FALSE;
 	gint fd;
+	if (channel != NULL) {
+		GIOChannel* _tmp0_;
+		close (g_io_channel_unix_get_fd (channel));
+		channel = (_tmp0_ = NULL, _g_io_channel_unref0 (channel), _tmp0_);
+	}
 	fd = open (fifo_path, O_NONBLOCK | O_RDONLY, 0);
 	if (fd >= 0) {
-		GIOChannel* channel;
-		channel = g_io_channel_unix_new (fd);
+		GIOChannel* _tmp1_;
+		channel = (_tmp1_ = g_io_channel_unix_new (fd), _g_io_channel_unref0 (channel), _tmp1_);
 		g_io_add_watch (channel, G_IO_IN | G_IO_HUP, _on_channel_gio_func, NULL);
 		result = TRUE;
-		_g_io_channel_unref0 (channel);
 		return result;
 	} else {
 		g_print ("Could not open '%s' for reading\n", fifo_path);

@@ -2,11 +2,16 @@ Gst.Element pipeline;
 MainLoop loop;
 string fifo_path;
 HashTable<string, CommandFunction> commands_table;
+IOChannel channel;
 
 bool init_channel() {
+    if(channel != null) {
+        Posix.close(channel.unix_get_fd());
+        channel = null;
+    }
     int fd = Posix.open(fifo_path, Posix.O_NONBLOCK | Posix.O_RDONLY);
     if(fd >= 0) {
-        IOChannel channel = new IOChannel.unix_new(fd);
+        channel = new IOChannel.unix_new(fd);
         channel.add_watch(IOCondition.IN | IOCondition.HUP, on_channel);
         return true;
     }
