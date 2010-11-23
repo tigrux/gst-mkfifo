@@ -208,11 +208,37 @@ static gpointer _gst_event_ref0 (gpointer self) {
 
 
 void command_seek (const char* line) {
+	gint direction = 0;
 	gint64 useconds;
+	gint64 position = 0LL;
 	GstEvent* seek_event;
 	g_return_if_fail (line != NULL);
+	if (g_str_has_prefix (line, "+")) {
+		direction = 1;
+	} else {
+		if (g_str_has_prefix (line, "-")) {
+			direction = -1;
+		} else {
+			direction = 0;
+		}
+	}
+	if (direction != 0) {
+		line = g_utf8_next_char (line);
+	}
 	useconds = (gint64) (g_ascii_strtod (line, NULL) * GST_SECOND);
-	seek_event = gst_event_new_seek (1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, GST_SEEK_TYPE_SET, useconds, GST_SEEK_TYPE_NONE, (gint64) 0);
+	if (direction != 0) {
+		GstFormat time_format;
+		time_format = GST_FORMAT_TIME;
+		if (gst_element_query_position (pipeline, &time_format, &position)) {
+			position = position + (useconds * direction);
+		} else {
+			g_printerr ("Could not get the current position\n");
+			return;
+		}
+	} else {
+		position = useconds;
+	}
+	seek_event = gst_event_new_seek (1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE, GST_SEEK_TYPE_SET, position, GST_SEEK_TYPE_NONE, (gint64) 0);
 	gst_element_send_event (pipeline, _gst_event_ref0 (seek_event));
 	_gst_event_unref0 (seek_event);
 }

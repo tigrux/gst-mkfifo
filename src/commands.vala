@@ -61,13 +61,40 @@ requires(pipeline != null) {
 
 
 void command_seek(string line) {
-    int64 useconds = (int64)(line.to_double() * Gst.SECOND);
+    int direction;
+    
+    if(line.has_prefix("+"))
+        direction = 1;
+    else
+    if(line.has_prefix("-"))
+        direction = -1;
+    else
+        direction = 0;
+
+    if(direction != 0) {
+        line = line.next_char();
+    }
+
+    int64 useconds = (int64)(line.to_double()*Gst.SECOND);
+    int64 position;
+    
+    if(direction != 0) {
+        Gst.Format time_format = Gst.Format.TIME;
+        if(pipeline.query_position(ref time_format, out position))
+            position += useconds*direction;
+        else {
+            printerr("Could not get the current position\n");
+            return;
+        }
+    }
+    else
+        position = useconds;
 
     var seek_event =
         new Gst.Event.seek(
             1.0, Gst.Format.TIME,
-            Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
-            Gst.SeekType.SET, useconds,
+            Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
+            Gst.SeekType.SET, position,
             Gst.SeekType.NONE, 0);
     pipeline.send_event(seek_event);
 }
