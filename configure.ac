@@ -1,4 +1,4 @@
-AC_INIT([gst-mkfifo], [0.1.1], [tigrux@gmail.com], [gst-mkfifo])
+AC_INIT([gst-mkfifo], [0.1.2], [tigrux@gmail.com], [gst-mkfifo])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS(config.h)
 AM_INIT_AUTOMAKE([foreign])
