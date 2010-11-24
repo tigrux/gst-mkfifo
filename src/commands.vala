@@ -1,5 +1,5 @@
 [CCode (has_target = false)]
-delegate void CommandFunction(string line);
+delegate bool CommandFunction(string line);
 
 struct Command {
     string name;
@@ -29,49 +29,55 @@ requires(commands_table == null) {
 }
 
 
-void command_parse(string line) {
+bool command_parse(string line) {
     try {
         pipeline = (Gst.Bin)Gst.parse_launch(line);
     }
     catch {
-        printerr("Could not parse the pipeline '%s'\n", line);
         pipeline = null;
     }
 
-    if(pipeline != null) {
-        Gst.Bus bus = pipeline.get_bus();
-        bus.add_signal_watch();
-        bus.message["eos"].connect(on_bus_message_eos);
-        bus.message["error"].connect(on_bus_message_error);
+    if(pipeline == null) {
+        printerr("Could not parse the pipeline '%s'\n", line);
+        return false;
     }
+    Gst.Bus bus = pipeline.get_bus();
+    bus.add_signal_watch();
+    bus.message["eos"].connect(on_bus_message_eos);
+    bus.message["error"].connect(on_bus_message_error);
+    return true;
 }
 
 
-void command_play(string? line)
+bool command_play(string? line)
 requires(pipeline != null) {
-    pipeline.set_state(Gst.State.PLAYING);
+    Gst.StateChangeReturn state_change = pipeline.set_state(Gst.State.PLAYING);
+    return state_change != Gst.StateChangeReturn.FAILURE;
 }
 
 
-void command_pause(string? line)
+bool command_pause(string? line)
 requires(pipeline != null) {
-    pipeline.set_state(Gst.State.PAUSED);
+    Gst.StateChangeReturn state_change = pipeline.set_state(Gst.State.PAUSED);
+    return state_change != Gst.StateChangeReturn.FAILURE;
 }
 
 
-void command_ready(string? line)
+bool command_ready(string? line)
 requires(pipeline != null) {
-    pipeline.set_state(Gst.State.READY);
+    Gst.StateChangeReturn state_change = pipeline.set_state(Gst.State.READY);
+    return state_change != Gst.StateChangeReturn.FAILURE;
 }
 
 
-void command_null(string? line)
+bool command_null(string? line)
 requires(pipeline != null) {
-    pipeline.set_state(Gst.State.NULL);
+    Gst.StateChangeReturn state_change = pipeline.set_state(Gst.State.NULL);
+    return state_change != Gst.StateChangeReturn.FAILURE;
 }
 
 
-void command_seek(string line) {
+bool command_seek(string line) {
     int direction;
 
     if(line.has_prefix("+"))
@@ -94,7 +100,7 @@ void command_seek(string line) {
             position += useconds*direction;
         else {
             printerr("Could not get the current position\n");
-            return;
+            return false;
         }
     }
     else
@@ -106,64 +112,66 @@ void command_seek(string line) {
             Gst.SeekFlags.FLUSH | Gst.SeekFlags.ACCURATE,
             Gst.SeekType.SET, position,
             Gst.SeekType.NONE, 0);
-    pipeline.send_event(seek_event);
+    return pipeline.send_event(seek_event);
 }
 
 
-void command_set(string ?line) {
+bool command_set(string ?line) {
     string args = line;
 
     if(args == null) {
         printerr("No element given\n");
-        return;
+        return false;
     }
     string element_name = pop_string(ref args);
 
     if(args == null) {
         printerr("No property given\n");
-        return;
+        return false;
     }
     string property_name = pop_string(ref args);
 
     if(args == null) {
         printerr("No value given\n");
-        return;
+        return false;
     }
     string value_string = pop_string(ref args);
 
     Gst.Element element = pipeline.get_by_name(element_name);
     if(element == null) {
         printerr("No element named '%s'\n", element_name);
-        return;
+        return false;
     }
 
     weak ParamSpec property = element.get_class().find_property(property_name);
     if(property == null) {
         printerr("No property named '%s'\n", property_name);
-        return;
+        return false;
     }
     Type property_type = property.value_type;
     Gst.Value property_value = Value(property_type);
 
     if(property_value.deserialize(value_string)) {
         element.set_property(property_name, property_value);
+        return true;
     }
     else {
         printerr("Could not transform value %s to type %s\n",
             value_string, property_type.name());
-        return;
+        return false;
     }
 }
 
 
-void command_eos(string? line)
+bool command_eos(string? line)
 requires(pipeline != null) {
-    pipeline.send_event(new Gst.Event.eos());
+    return pipeline.send_event(new Gst.Event.eos());
 }
 
 
-void command_exit(string? line)
+bool command_exit(string? line)
 requires(loop != null) {
     loop.quit();
+    return true;
 }
 

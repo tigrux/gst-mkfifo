@@ -11,7 +11,7 @@
 #define _g_free0(var) (var = (g_free (var), NULL))
 #define _g_error_free0(var) ((var == NULL) ? NULL : (var = (g_error_free (var), NULL)))
 
-typedef void (*CommandFunction) (const char* line);
+typedef gboolean (*CommandFunction) (const char* line);
 
 extern GHashTable* commands_table;
 extern GstBin* pipeline;
@@ -143,7 +143,9 @@ void exec_command (const char* command_name, const char* line) {
 	g_return_if_fail (command_name != NULL);
 	function = g_hash_table_lookup (commands_table, command_name);
 	if (function != NULL) {
-		function (line);
+		if (!function (line)) {
+			g_printerr ("Command '%s' failed\n", command_name);
+		}
 	} else {
 		g_printerr ("No function for command '%s'\n", command_name);
 	}

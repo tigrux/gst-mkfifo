@@ -16,7 +16,7 @@
 #define _g_free0(var) (var = (g_free (var), NULL))
 #define _g_main_loop_unref0(var) ((var == NULL) ? NULL : (var = (g_main_loop_unref (var), NULL)))
 
-typedef void (*CommandFunction) (const char* line);
+typedef gboolean (*CommandFunction) (const char* line);
 
 extern GstBin* pipeline;
 GstBin* pipeline = NULL;

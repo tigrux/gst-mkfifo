@@ -50,8 +50,10 @@ void on_bus_message_error(Gst.Bus bus, Gst.Message message) {
 
 void exec_command(string command_name, string? line) {
     CommandFunction function = commands_table.lookup(command_name);
-    if(function != null)
-        function(line);
+    if(function != null) {
+        if(!function(line))
+            printerr("Command '%s' failed\n", command_name);
+    }
     else
         printerr("No function for command '%s'\n", command_name);
 }
