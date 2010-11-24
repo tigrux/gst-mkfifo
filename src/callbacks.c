@@ -19,7 +19,7 @@ extern GstBin* pipeline;
 
 gboolean on_fifo_channel (GIOChannel* channel, GIOCondition condition);
 char* pop_string (char** line);
-void exec_command (const char* command_name, const char* line);
+gboolean exec_command (const char* command_name, const char* line);
 gboolean init_channel (void);
 void on_bus_message_eos (void);
 void on_bus_message_error (GstBus* bus, GstMessage* message);

@@ -35,14 +35,20 @@ requires(commands_table == null) {
 }
 
 
-void exec_command(string command_name, string? line) {
+bool exec_command(string command_name, string? line) {
     CommandFunction function = commands_table.lookup(command_name);
     if(function != null) {
-        if(!function(line))
+        if(function(line))
+            return true;
+        else {
             printerr("Command '%s' failed\n", command_name);
+            return false;
+        }
     }
-    else
+    else {
         printerr("No function for command '%s'\n", command_name);
+        return false;
+    }
 }
 
 

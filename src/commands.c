@@ -53,7 +53,7 @@ gboolean command_exit (const char* line);
 static gboolean _command_exit_command_function (const char* line);
 void init_commands (void);
 char* pop_string (char** line);
-void exec_command (const char* command_name, const char* line);
+gboolean exec_command (const char* command_name, const char* line);
 void on_bus_message_eos (void);
 static void _on_bus_message_eos_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
 void on_bus_message_error (GstBus* bus, GstMessage* message);
@@ -195,16 +195,24 @@ void init_commands (void) {
 }
 
 
-void exec_command (const char* command_name, const char* line) {
+gboolean exec_command (const char* command_name, const char* line) {
+	gboolean result = FALSE;
 	CommandFunction function;
-	g_return_if_fail (command_name != NULL);
+	g_return_val_if_fail (command_name != NULL, FALSE);
 	function = g_hash_table_lookup (commands_table, command_name);
 	if (function != NULL) {
-		if (!function (line)) {
+		if (function (line)) {
+			result = TRUE;
+			return result;
+		} else {
 			g_printerr ("Command '%s' failed\n", command_name);
+			result = FALSE;
+			return result;
 		}
 	} else {
 		g_printerr ("No function for command '%s'\n", command_name);
+		result = FALSE;
+		return result;
 	}
 }
 
