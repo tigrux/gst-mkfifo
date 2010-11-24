@@ -1,4 +1,4 @@
-bool on_channel(IOChannel channel, IOCondition condition)
+bool on_fifo_channel(IOChannel channel, IOCondition condition)
 requires(commands_table != null) {
     string command_name = null;
     if((condition & IOCondition.IN) != 0) {
@@ -22,7 +22,7 @@ requires(commands_table != null) {
 
     if((condition & IOCondition.HUP) != 0) {
         if(!init_channel())
-            exec_command("quit", null);
+            loop.quit();
         return false;
     }
 
@@ -43,33 +43,7 @@ void on_bus_message_error(Gst.Bus bus, Gst.Message message) {
     message.parse_error(out error, out debug);
 
     printerr("ERROR from element %s: %s\n", message.src.name, error.message);
-    printerr("Debugging info: %s\n", (debug != null) ? debug : "none");
+    printerr("Debugging info: %s\n", debug ?? "none");
     on_bus_message_eos();
-}
-
-
-void exec_command(string command_name, string? line) {
-    CommandFunction function = commands_table.lookup(command_name);
-    if(function != null) {
-        if(!function(line))
-            printerr("Command '%s' failed\n", command_name);
-    }
-    else
-        printerr("No function for command '%s'\n", command_name);
-}
-
-
-string? pop_string(ref string? line) {
-    if(line == null)
-        return null;
-    string[] parts = line.split(" ", 2);
-    string head = parts[0];
-    if(head != null)
-        head = head.strip();
-    string tail = parts[1];
-    if(tail != null)
-        tail = tail.strip();
-    line = tail;
-    return head;
 }
 

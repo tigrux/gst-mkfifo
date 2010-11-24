@@ -14,17 +14,15 @@
 typedef gboolean (*CommandFunction) (const char* line);
 
 extern GHashTable* commands_table;
+extern GMainLoop* loop;
 extern GstBin* pipeline;
 
-gboolean on_channel (GIOChannel* channel, GIOCondition condition);
+gboolean on_fifo_channel (GIOChannel* channel, GIOCondition condition);
 char* pop_string (char** line);
 void exec_command (const char* command_name, const char* line);
 gboolean init_channel (void);
 void on_bus_message_eos (void);
 void on_bus_message_error (GstBus* bus, GstMessage* message);
-static void _vala_array_destroy (gpointer array, gint array_length, GDestroyNotify destroy_func);
-static void _vala_array_free (gpointer array, gint array_length, GDestroyNotify destroy_func);
-static gint _vala_array_length (gpointer array);
 
 
 
@@ -39,7 +37,7 @@ static char* string_strip (const char* self) {
 }
 
 
-gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
+gboolean on_fifo_channel (GIOChannel* channel, GIOCondition condition) {
 	gboolean result = FALSE;
 	char* command_name;
 	GError * _inner_error_ = NULL;
@@ -91,7 +89,7 @@ gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
 	}
 	if ((condition & G_IO_HUP) != 0) {
 		if (!init_channel ()) {
-			exec_command ("quit", NULL);
+			g_main_loop_quit (loop);
 		}
 		result = FALSE;
 		_g_free0 (command_name);
@@ -117,7 +115,7 @@ void on_bus_message_error (GstBus* bus, GstMessage* message) {
 	GError* _tmp1_;
 	char* _tmp2_ = NULL;
 	char* _tmp3_;
-	const char* _tmp4_;
+	char* _tmp4_;
 	g_return_if_fail (bus != NULL);
 	g_return_if_fail (message != NULL);
 	_error_ = NULL;
@@ -125,93 +123,16 @@ void on_bus_message_error (GstBus* bus, GstMessage* message) {
 	(gst_message_parse_error (message, &_tmp0_, &_tmp2_), _error_ = (_tmp1_ = _tmp0_, _g_error_free0 (_error_), _tmp1_));
 	debug = (_tmp3_ = _tmp2_, _g_free0 (debug), _tmp3_);
 	g_printerr ("ERROR from element %s: %s\n", gst_object_get_name (message->src), _error_->message);
-	_tmp4_ = NULL;
-	if (debug != NULL) {
-		_tmp4_ = debug;
-	} else {
-		_tmp4_ = "none";
+	_tmp4_ = g_strdup (debug);
+	if (_tmp4_ == NULL) {
+		char* _tmp5_;
+		_tmp4_ = (_tmp5_ = g_strdup ("none"), _g_free0 (_tmp4_), _tmp5_);
 	}
 	g_printerr ("Debugging info: %s\n", _tmp4_);
 	on_bus_message_eos ();
+	_g_free0 (_tmp4_);
 	_g_free0 (debug);
 	_g_error_free0 (_error_);
-}
-
-
-void exec_command (const char* command_name, const char* line) {
-	CommandFunction function;
-	g_return_if_fail (command_name != NULL);
-	function = g_hash_table_lookup (commands_table, command_name);
-	if (function != NULL) {
-		if (!function (line)) {
-			g_printerr ("Command '%s' failed\n", command_name);
-		}
-	} else {
-		g_printerr ("No function for command '%s'\n", command_name);
-	}
-}
-
-
-char* pop_string (char** line) {
-	char* result = NULL;
-	gint parts_length1;
-	gint _parts_size_;
-	char** _tmp1_;
-	char** _tmp0_;
-	char** parts;
-	char* head;
-	char* tail;
-	char* _tmp4_;
-	if ((*line) == NULL) {
-		result = NULL;
-		return result;
-	}
-	parts = (_tmp1_ = _tmp0_ = g_strsplit (*line, " ", 2), parts_length1 = _vala_array_length (_tmp0_), _parts_size_ = parts_length1, _tmp1_);
-	head = g_strdup (parts[0]);
-	if (head != NULL) {
-		char* _tmp2_;
-		head = (_tmp2_ = string_strip (head), _g_free0 (head), _tmp2_);
-	}
-	tail = g_strdup (parts[1]);
-	if (tail != NULL) {
-		char* _tmp3_;
-		tail = (_tmp3_ = string_strip (tail), _g_free0 (tail), _tmp3_);
-	}
-	*line = (_tmp4_ = g_strdup (tail), _g_free0 (*line), _tmp4_);
-	result = head;
-	_g_free0 (tail);
-	parts = (_vala_array_free (parts, parts_length1, (GDestroyNotify) g_free), NULL);
-	return result;
-}
-
-
-static void _vala_array_destroy (gpointer array, gint array_length, GDestroyNotify destroy_func) {
-	if ((array != NULL) && (destroy_func != NULL)) {
-		int i;
-		for (i = 0; i < array_length; i = i + 1) {
-			if (((gpointer*) array)[i] != NULL) {
-				destroy_func (((gpointer*) array)[i]);
-			}
-		}
-	}
-}
-
-
-static void _vala_array_free (gpointer array, gint array_length, GDestroyNotify destroy_func) {
-	_vala_array_destroy (array, array_length, destroy_func);
-	g_free (array);
-}
-
-
-static gint _vala_array_length (gpointer array) {
-	int length;
-	length = 0;
-	if (array) {
-		while (((gpointer*) array)[length]) {
-			length++;
-		}
-	}
-	return length;
 }
 
 

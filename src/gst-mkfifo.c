@@ -24,58 +24,115 @@ extern GMainLoop* loop;
 GMainLoop* loop = NULL;
 extern char* fifo_path;
 char* fifo_path = NULL;
+extern GIOChannel* fifo_channel;
+GIOChannel* fifo_channel = NULL;
 extern GHashTable* commands_table;
 GHashTable* commands_table = NULL;
-extern GIOChannel* channel;
-GIOChannel* channel = NULL;
+extern GHashTable* command_descriptions_table;
+GHashTable* command_descriptions_table = NULL;
 
 gboolean init_channel (void);
-gboolean on_channel (GIOChannel* channel, GIOCondition condition);
-static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self);
+gboolean on_fifo_channel (GIOChannel* channel, GIOCondition condition);
+static gboolean _on_fifo_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self);
+char* pop_string (char** line);
 gint _vala_main (char** args, int args_length1);
 void init_commands (void);
-static void _lambda0_ (void* key);
+static void _lambda0_ (void* k, void* v);
 static void __lambda0__gh_func (void* key, void* value, gpointer self);
+static void _vala_array_destroy (gpointer array, gint array_length, GDestroyNotify destroy_func);
+static void _vala_array_free (gpointer array, gint array_length, GDestroyNotify destroy_func);
+static gint _vala_array_length (gpointer array);
 
 
 
-static gboolean _on_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self) {
+static gboolean _on_fifo_channel_gio_func (GIOChannel* source, GIOCondition condition, gpointer self) {
 	gboolean result;
-	result = on_channel (source, condition);
+	result = on_fifo_channel (source, condition);
 	return result;
 }
 
 
 gboolean init_channel (void) {
 	gboolean result = FALSE;
-	gint fd;
-	if (channel != NULL) {
+	gint fifo_fd;
+	if (fifo_channel != NULL) {
 		GIOChannel* _tmp0_;
-		close (g_io_channel_unix_get_fd (channel));
-		channel = (_tmp0_ = NULL, _g_io_channel_unref0 (channel), _tmp0_);
+		close (g_io_channel_unix_get_fd (fifo_channel));
+		fifo_channel = (_tmp0_ = NULL, _g_io_channel_unref0 (fifo_channel), _tmp0_);
 	}
-	fd = open (fifo_path, O_NONBLOCK | O_RDONLY, 0);
-	if (fd >= 0) {
+	fifo_fd = open (fifo_path, O_NONBLOCK | O_RDONLY, 0);
+	if (fifo_fd >= 0) {
 		GIOChannel* _tmp1_;
-		channel = (_tmp1_ = g_io_channel_unix_new (fd), _g_io_channel_unref0 (channel), _tmp1_);
-		g_io_add_watch (channel, G_IO_IN | G_IO_HUP, _on_channel_gio_func, NULL);
+		fifo_channel = (_tmp1_ = g_io_channel_unix_new (fifo_fd), _g_io_channel_unref0 (fifo_channel), _tmp1_);
+		g_io_add_watch (fifo_channel, G_IO_IN | G_IO_HUP, _on_fifo_channel_gio_func, NULL);
 		result = TRUE;
 		return result;
 	} else {
-		g_print ("Could not open '%s' for reading\n", fifo_path);
+		g_printerr ("Could not open '%s' for reading\n", fifo_path);
 		result = FALSE;
 		return result;
 	}
 }
 
 
-static void _lambda0_ (void* key) {
-	g_print ("  %s\n", (const char*) key);
+static char* string_strip (const char* self) {
+	char* result = NULL;
+	char* _result_;
+	g_return_val_if_fail (self != NULL, NULL);
+	_result_ = g_strdup (self);
+	g_strstrip (_result_);
+	result = _result_;
+	return result;
+}
+
+
+char* pop_string (char** line) {
+	char* result = NULL;
+	gint parts_length1;
+	gint _parts_size_;
+	char** _tmp1_;
+	char** _tmp0_;
+	char** parts;
+	char* head;
+	char* tail;
+	char* _tmp4_;
+	if ((*line) == NULL) {
+		result = NULL;
+		return result;
+	}
+	parts = (_tmp1_ = _tmp0_ = g_strsplit (*line, " ", 2), parts_length1 = _vala_array_length (_tmp0_), _parts_size_ = parts_length1, _tmp1_);
+	head = g_strdup (parts[0]);
+	if (head != NULL) {
+		char* _tmp2_;
+		head = (_tmp2_ = string_strip (head), _g_free0 (head), _tmp2_);
+	}
+	tail = g_strdup (parts[1]);
+	if (tail != NULL) {
+		char* _tmp3_;
+		tail = (_tmp3_ = string_strip (tail), _g_free0 (tail), _tmp3_);
+	}
+	*line = (_tmp4_ = g_strdup (tail), _g_free0 (*line), _tmp4_);
+	result = head;
+	_g_free0 (tail);
+	parts = (_vala_array_free (parts, parts_length1, (GDestroyNotify) g_free), NULL);
+	return result;
+}
+
+
+static void _lambda0_ (void* k, void* v) {
+	char* _tmp0_;
+	_tmp0_ = g_strdup ((const char*) v);
+	if (_tmp0_ == NULL) {
+		char* _tmp1_;
+		_tmp0_ = (_tmp1_ = g_strdup (""), _g_free0 (_tmp0_), _tmp1_);
+	}
+	g_print ("\t%s %s\n", (const char*) k, _tmp0_);
+	_g_free0 (_tmp0_);
 }
 
 
 static void __lambda0__gh_func (void* key, void* value, gpointer self) {
-	_lambda0_ (key);
+	_lambda0_ (key, value);
 }
 
 
@@ -86,9 +143,9 @@ gint _vala_main (char** args, int args_length1) {
 	gst_init (&args_length1, &args);
 	init_commands ();
 	if (args_length1 != 2) {
-		g_printerr ("Usage: %s <fifo>\n", args[0]);
-		g_printerr ("Where <fifo> can be written the following commands:\n");
-		g_hash_table_foreach (commands_table, __lambda0__gh_func, NULL);
+		g_print ("Usage: %s <fifo>\n", args[0]);
+		g_print ("Where <fifo> can be written the following commands:\n");
+		g_hash_table_foreach (command_descriptions_table, __lambda0__gh_func, NULL);
 		result = 1;
 		return result;
 	}
@@ -114,6 +171,36 @@ int main (int argc, char ** argv) {
 	g_thread_init (NULL);
 	g_type_init ();
 	return _vala_main (argv, argc);
+}
+
+
+static void _vala_array_destroy (gpointer array, gint array_length, GDestroyNotify destroy_func) {
+	if ((array != NULL) && (destroy_func != NULL)) {
+		int i;
+		for (i = 0; i < array_length; i = i + 1) {
+			if (((gpointer*) array)[i] != NULL) {
+				destroy_func (((gpointer*) array)[i]);
+			}
+		}
+	}
+}
+
+
+static void _vala_array_free (gpointer array, gint array_length, GDestroyNotify destroy_func) {
+	_vala_array_destroy (array, array_length, destroy_func);
+	g_free (array);
+}
+
+
+static gint _vala_array_length (gpointer array) {
+	int length;
+	length = 0;
+	if (array) {
+		while (((gpointer*) array)[length]) {
+			length++;
+		}
+	}
+	return length;
 }
 
 

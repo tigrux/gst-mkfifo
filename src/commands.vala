@@ -1,22 +1,23 @@
 [CCode (has_target = false)]
 delegate bool CommandFunction(string line);
 
+
 struct Command {
-    string name;
+    string description;
     CommandFunction function;
 }
 
 
 const Command commands[] = {
-    {"parse", command_parse},
-    {"play", command_play},
-    {"pause", command_pause},
-    {"ready", command_ready},
-    {"null", command_null},
-    {"seek", command_seek},
-    {"set", command_set},
-    {"eos", command_eos},
-    {"exit", command_exit},
+    {"parse <pipeline> (create pipeline from description)", command_parse},
+    {"play (set pipeline state to playing)", command_play},
+    {"pause (set pipeline state to paused)", command_pause},
+    {"ready (set pipeline state to ready)", command_ready},
+    {"null (set pipeline state to null)", command_null},
+    {"seek <seconds> | <+seconds> | <-seconds> (seek to seconds)", command_seek},
+    {"set <element> <property> <value> (set property of element to value)", command_set},
+    {"eos (send eos to pipeline)", command_eos},
+    {"exit (exit the program)", command_exit},
     {null, null}
 };
 
@@ -24,8 +25,24 @@ const Command commands[] = {
 void init_commands()
 requires(commands_table == null) {
     commands_table = new HashTable<string, CommandFunction> (str_hash, str_equal);
-    for(int i=0; commands[i].name != null; i++)
-        commands_table.insert(commands[i].name, commands[i].function);
+    command_descriptions_table = new HashTable<string, string> (str_hash, str_equal);
+    for(int i=0; commands[i].description != null; i++) {
+        string description = commands[i].description;
+        string name = pop_string(ref description);
+        commands_table.insert(name, commands[i].function);
+        command_descriptions_table.insert(name, description);
+    }
+}
+
+
+void exec_command(string command_name, string? line) {
+    CommandFunction function = commands_table.lookup(command_name);
+    if(function != null) {
+        if(!function(line))
+            printerr("Command '%s' failed\n", command_name);
+    }
+    else
+        printerr("No function for command '%s'\n", command_name);
 }
 
 
@@ -116,7 +133,7 @@ bool command_seek(string line) {
 }
 
 
-bool command_set(string ?line) {
+bool command_set(string line) {
     string args = line;
 
     if(args == null) {

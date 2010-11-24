@@ -18,12 +18,13 @@ typedef struct _Command Command;
 
 typedef gboolean (*CommandFunction) (const char* line);
 struct _Command {
-	char* name;
+	char* description;
 	CommandFunction function;
 };
 
 
 extern GHashTable* commands_table;
+extern GHashTable* command_descriptions_table;
 extern GstBin* pipeline;
 extern GMainLoop* loop;
 
@@ -51,23 +52,24 @@ static gboolean _command_eos_command_function (const char* line);
 gboolean command_exit (const char* line);
 static gboolean _command_exit_command_function (const char* line);
 void init_commands (void);
+char* pop_string (char** line);
+void exec_command (const char* command_name, const char* line);
 void on_bus_message_eos (void);
 static void _on_bus_message_eos_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
 void on_bus_message_error (GstBus* bus, GstMessage* message);
 static void _on_bus_message_error_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
-char* pop_string (char** line);
 
-const Command commands[10] = {{"parse", _command_parse_command_function}, {"play", _command_play_command_function}, {"pause", _command_pause_command_function}, {"ready", _command_ready_command_function}, {"null", _command_null_command_function}, {"seek", _command_seek_command_function}, {"set", _command_set_command_function}, {"eos", _command_eos_command_function}, {"exit", _command_exit_command_function}, {NULL, NULL}};
+const Command commands[10] = {{"parse <pipeline> (create pipeline from description)", _command_parse_command_function}, {"play (set pipeline state to playing)", _command_play_command_function}, {"pause (set pipeline state to paused)", _command_pause_command_function}, {"ready (set pipeline state to ready)", _command_ready_command_function}, {"null (set pipeline state to null)", _command_null_command_function}, {"seek <seconds> | <+seconds> | <-seconds> (seek to seconds)", _command_seek_command_function}, {"set <element> <property> <value> (set property of element to value)", _command_set_command_function}, {"eos (send eos to pipeline)", _command_eos_command_function}, {"exit (exit the program)", _command_exit_command_function}, {NULL, NULL}};
 
 
 void command_copy (const Command* self, Command* dest) {
-	dest->name = g_strdup (self->name);
+	dest->description = g_strdup (self->description);
 	dest->function = self->function;
 }
 
 
 void command_destroy (Command* self) {
-	_g_free0 (self->name);
+	_g_free0 (self->description);
 }
 
 
@@ -161,25 +163,48 @@ static gboolean _command_exit_command_function (const char* line) {
 
 void init_commands (void) {
 	GHashTable* _tmp0_;
+	GHashTable* _tmp1_;
 	g_return_if_fail (commands_table == NULL);
 	commands_table = (_tmp0_ = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL), _g_hash_table_unref0 (commands_table), _tmp0_);
+	command_descriptions_table = (_tmp1_ = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free), _g_hash_table_unref0 (command_descriptions_table), _tmp1_);
 	{
 		gint i;
 		i = 0;
 		{
-			gboolean _tmp1_;
-			_tmp1_ = TRUE;
+			gboolean _tmp2_;
+			_tmp2_ = TRUE;
 			while (TRUE) {
-				if (!_tmp1_) {
+				char* description;
+				char* name;
+				if (!_tmp2_) {
 					i++;
 				}
-				_tmp1_ = FALSE;
-				if (!(commands[i].name != NULL)) {
+				_tmp2_ = FALSE;
+				if (!(commands[i].description != NULL)) {
 					break;
 				}
-				g_hash_table_insert (commands_table, g_strdup (commands[i].name), commands[i].function);
+				description = g_strdup (commands[i].description);
+				name = pop_string (&description);
+				g_hash_table_insert (commands_table, g_strdup (name), commands[i].function);
+				g_hash_table_insert (command_descriptions_table, g_strdup (name), g_strdup (description));
+				_g_free0 (name);
+				_g_free0 (description);
 			}
 		}
+	}
+}
+
+
+void exec_command (const char* command_name, const char* line) {
+	CommandFunction function;
+	g_return_if_fail (command_name != NULL);
+	function = g_hash_table_lookup (commands_table, command_name);
+	if (function != NULL) {
+		if (!function (line)) {
+			g_printerr ("Command '%s' failed\n", command_name);
+		}
+	} else {
+		g_printerr ("No function for command '%s'\n", command_name);
 	}
 }
 
@@ -334,6 +359,7 @@ gboolean command_set (const char* line) {
 	GParamSpec* property;
 	GType property_type;
 	GValue property_value = {0};
+	g_return_val_if_fail (line != NULL, FALSE);
 	args = g_strdup (line);
 	if (args == NULL) {
 		g_printerr ("No element given\n");
