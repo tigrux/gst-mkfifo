@@ -14,7 +14,7 @@ requires(commands_table != null) {
         if(line != null) {
             line = line.strip();
             print("Got line '%s'\n", line);
-            line = partition(line, out command_name);
+            command_name = pop_string(ref line);
             if(command_name != null)
                 exec_command(command_name, line);
         }
@@ -57,9 +57,17 @@ void exec_command(string command_name, string? line) {
 }
 
 
-string partition(string line, out string head) {
+string? pop_string(ref string? line) {
+    if(line == null)
+        return null;
     string[] parts = line.split(" ", 2);
-    head = parts[0];
-    return parts[1];
+    string head = parts[0];
+    if(head != null)
+        head = head.strip();
+    string tail = parts[1];
+    if(tail != null)
+        tail = tail.strip();
+    line = tail;
+    return head;
 }
 

@@ -24,7 +24,7 @@ struct _Command {
 
 
 extern GHashTable* commands_table;
-extern GstElement* pipeline;
+extern GstBin* pipeline;
 extern GMainLoop* loop;
 
 GType command_get_type (void) G_GNUC_CONST;
@@ -44,6 +44,8 @@ void command_null (const char* line);
 static void _command_null_command_function (const char* line);
 void command_seek (const char* line);
 static void _command_seek_command_function (const char* line);
+void command_set (const char* line);
+static void _command_set_command_function (const char* line);
 void command_eos (const char* line);
 static void _command_eos_command_function (const char* line);
 void command_exit (const char* line);
@@ -53,8 +55,9 @@ void on_bus_message_eos (void);
 static void _on_bus_message_eos_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
 void on_bus_message_error (GstBus* bus, GstMessage* message);
 static void _on_bus_message_error_gst_bus_message (GstBus* _sender, GstMessage* message, gpointer self);
+char* pop_string (char** line);
 
-const Command commands[9] = {{"parse", _command_parse_command_function}, {"play", _command_play_command_function}, {"pause", _command_pause_command_function}, {"ready", _command_ready_command_function}, {"null", _command_null_command_function}, {"seek", _command_seek_command_function}, {"eos", _command_eos_command_function}, {"exit", _command_exit_command_function}, {NULL, NULL}};
+const Command commands[10] = {{"parse", _command_parse_command_function}, {"play", _command_play_command_function}, {"pause", _command_pause_command_function}, {"ready", _command_ready_command_function}, {"null", _command_null_command_function}, {"seek", _command_seek_command_function}, {"set", _command_set_command_function}, {"eos", _command_eos_command_function}, {"exit", _command_exit_command_function}, {NULL, NULL}};
 
 
 void command_copy (const Command* self, Command* dest) {
@@ -123,6 +126,11 @@ static void _command_seek_command_function (const char* line) {
 }
 
 
+static void _command_set_command_function (const char* line) {
+	command_set (line);
+}
+
+
 static void _command_eos_command_function (const char* line) {
 	command_eos (line);
 }
@@ -173,12 +181,12 @@ void command_parse (const char* line) {
 	g_return_if_fail (line != NULL);
 	{
 		GstElement* _tmp0_;
-		GstElement* _tmp1_;
+		GstBin* _tmp1_;
 		_tmp0_ = gst_parse_launch (line, &_inner_error_);
 		if (_inner_error_ != NULL) {
 			goto __catch1_g_error;
 		}
-		pipeline = (_tmp1_ = _tmp0_, _gst_object_unref0 (pipeline), _tmp1_);
+		pipeline = (_tmp1_ = GST_BIN (_tmp0_), _gst_object_unref0 (pipeline), _tmp1_);
 	}
 	goto __finally1;
 	__catch1_g_error:
@@ -186,7 +194,7 @@ void command_parse (const char* line) {
 		g_clear_error (&_inner_error_);
 		_inner_error_ = NULL;
 		{
-			GstElement* _tmp2_;
+			GstBin* _tmp2_;
 			g_printerr ("Could not parse the pipeline '%s'\n", line);
 			pipeline = (_tmp2_ = NULL, _gst_object_unref0 (pipeline), _tmp2_);
 		}
@@ -199,7 +207,7 @@ void command_parse (const char* line) {
 	}
 	if (pipeline != NULL) {
 		GstBus* bus;
-		bus = gst_element_get_bus (pipeline);
+		bus = gst_element_get_bus ((GstElement*) pipeline);
 		gst_bus_add_signal_watch (bus);
 		g_signal_connect (bus, "message::eos", (GCallback) _on_bus_message_eos_gst_bus_message, NULL);
 		g_signal_connect (bus, "message::error", (GCallback) _on_bus_message_error_gst_bus_message, NULL);
@@ -210,25 +218,25 @@ void command_parse (const char* line) {
 
 void command_play (const char* line) {
 	g_return_if_fail (pipeline != NULL);
-	gst_element_set_state (pipeline, GST_STATE_PLAYING);
+	gst_element_set_state ((GstElement*) pipeline, GST_STATE_PLAYING);
 }
 
 
 void command_pause (const char* line) {
 	g_return_if_fail (pipeline != NULL);
-	gst_element_set_state (pipeline, GST_STATE_PAUSED);
+	gst_element_set_state ((GstElement*) pipeline, GST_STATE_PAUSED);
 }
 
 
 void command_ready (const char* line) {
 	g_return_if_fail (pipeline != NULL);
-	gst_element_set_state (pipeline, GST_STATE_READY);
+	gst_element_set_state ((GstElement*) pipeline, GST_STATE_READY);
 }
 
 
 void command_null (const char* line) {
 	g_return_if_fail (pipeline != NULL);
-	gst_element_set_state (pipeline, GST_STATE_NULL);
+	gst_element_set_state ((GstElement*) pipeline, GST_STATE_NULL);
 }
 
 
@@ -259,7 +267,7 @@ void command_seek (const char* line) {
 	if (direction != 0) {
 		GstFormat time_format;
 		time_format = GST_FORMAT_TIME;
-		if (gst_element_query_position (pipeline, &time_format, &position)) {
+		if (gst_element_query_position ((GstElement*) pipeline, &time_format, &position)) {
 			position = position + (useconds * direction);
 		} else {
 			g_printerr ("Could not get the current position\n");
@@ -269,14 +277,86 @@ void command_seek (const char* line) {
 		position = useconds;
 	}
 	seek_event = gst_event_new_seek (1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE, GST_SEEK_TYPE_SET, position, GST_SEEK_TYPE_NONE, (gint64) 0);
-	gst_element_send_event (pipeline, _gst_event_ref0 (seek_event));
+	gst_element_send_event ((GstElement*) pipeline, _gst_event_ref0 (seek_event));
 	_gst_event_unref0 (seek_event);
+}
+
+
+void command_set (const char* line) {
+	char* args;
+	char* element_name;
+	char* property_name;
+	char* value_string;
+	GstElement* element;
+	GParamSpec* property;
+	GType property_type;
+	GValue property_value = {0};
+	args = g_strdup (line);
+	if (args == NULL) {
+		g_printerr ("No element given\n");
+		_g_free0 (args);
+		return;
+	}
+	element_name = pop_string (&args);
+	if (args == NULL) {
+		g_printerr ("No property given\n");
+		_g_free0 (element_name);
+		_g_free0 (args);
+		return;
+	}
+	property_name = pop_string (&args);
+	if (args == NULL) {
+		g_printerr ("No value given\n");
+		_g_free0 (property_name);
+		_g_free0 (element_name);
+		_g_free0 (args);
+		return;
+	}
+	value_string = pop_string (&args);
+	element = gst_bin_get_by_name (pipeline, element_name);
+	if (element == NULL) {
+		g_printerr ("No element named '%s'\n", element_name);
+		_gst_object_unref0 (element);
+		_g_free0 (value_string);
+		_g_free0 (property_name);
+		_g_free0 (element_name);
+		_g_free0 (args);
+		return;
+	}
+	property = g_object_class_find_property (G_OBJECT_GET_CLASS ((GObject*) element), property_name);
+	if (property == NULL) {
+		g_printerr ("No property named '%s'\n", property_name);
+		_gst_object_unref0 (element);
+		_g_free0 (value_string);
+		_g_free0 (property_name);
+		_g_free0 (element_name);
+		_g_free0 (args);
+		return;
+	}
+	property_type = property->value_type;
+	g_value_init (&property_value, property_type);
+	if (gst_value_deserialize (&property_value, value_string)) {
+		g_object_set_property ((GObject*) element, property_name, &property_value);
+	} else {
+		g_printerr ("Could not transform value %s to type %s\n", value_string, g_type_name (property_type));
+		_gst_object_unref0 (element);
+		_g_free0 (value_string);
+		_g_free0 (property_name);
+		_g_free0 (element_name);
+		_g_free0 (args);
+		return;
+	}
+	_gst_object_unref0 (element);
+	_g_free0 (value_string);
+	_g_free0 (property_name);
+	_g_free0 (element_name);
+	_g_free0 (args);
 }
 
 
 void command_eos (const char* line) {
 	g_return_if_fail (pipeline != NULL);
-	gst_element_send_event (pipeline, gst_event_new_eos ());
+	gst_element_send_event ((GstElement*) pipeline, gst_event_new_eos ());
 }
 
 

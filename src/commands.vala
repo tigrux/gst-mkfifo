@@ -14,6 +14,7 @@ const Command commands[] = {
     {"ready", command_ready},
     {"null", command_null},
     {"seek", command_seek},
+    {"set", command_set},
     {"eos", command_eos},
     {"exit", command_exit},
     {null, null}
@@ -30,7 +31,7 @@ requires(commands_table == null) {
 
 void command_parse(string line) {
     try {
-        pipeline = Gst.parse_launch(line);
+        pipeline = (Gst.Bin)Gst.parse_launch(line);
     }
     catch {
         printerr("Could not parse the pipeline '%s'\n", line);
@@ -106,6 +107,52 @@ void command_seek(string line) {
             Gst.SeekType.SET, position,
             Gst.SeekType.NONE, 0);
     pipeline.send_event(seek_event);
+}
+
+
+void command_set(string ?line) {
+    string args = line;
+
+    if(args == null) {
+        printerr("No element given\n");
+        return;
+    }
+    string element_name = pop_string(ref args);
+
+    if(args == null) {
+        printerr("No property given\n");
+        return;
+    }
+    string property_name = pop_string(ref args);
+
+    if(args == null) {
+        printerr("No value given\n");
+        return;
+    }
+    string value_string = pop_string(ref args);
+
+    Gst.Element element = pipeline.get_by_name(element_name);
+    if(element == null) {
+        printerr("No element named '%s'\n", element_name);
+        return;
+    }
+
+    weak ParamSpec property = element.get_class().find_property(property_name);
+    if(property == null) {
+        printerr("No property named '%s'\n", property_name);
+        return;
+    }
+    Type property_type = property.value_type;
+    Gst.Value property_value = Value(property_type);
+
+    if(property_value.deserialize(value_string)) {
+        element.set_property(property_name, property_value);
+    }
+    else {
+        printerr("Could not transform value %s to type %s\n",
+            value_string, property_type.name());
+        return;
+    }
 }
 
 

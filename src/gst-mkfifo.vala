@@ -1,4 +1,4 @@
-Gst.Element pipeline;
+Gst.Bin pipeline;
 MainLoop loop;
 string fifo_path;
 HashTable<string, CommandFunction> commands_table;

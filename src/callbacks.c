@@ -14,10 +14,10 @@
 typedef void (*CommandFunction) (const char* line);
 
 extern GHashTable* commands_table;
-extern GstElement* pipeline;
+extern GstBin* pipeline;
 
 gboolean on_channel (GIOChannel* channel, GIOCondition condition);
-char* partition (const char* line, char** head);
+char* pop_string (char** line);
 void exec_command (const char* command_name, const char* line);
 gboolean init_channel (void);
 void on_bus_message_eos (void);
@@ -79,13 +79,10 @@ gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
 		}
 		if (line != NULL) {
 			char* _tmp3_;
-			char* _tmp4_ = NULL;
-			char* _tmp5_;
-			char* _tmp6_;
-			char* _tmp7_;
+			char* _tmp4_;
 			line = (_tmp3_ = string_strip (line), _g_free0 (line), _tmp3_);
 			g_print ("Got line '%s'\n", line);
-			line = (_tmp7_ = (_tmp5_ = partition (line, &_tmp4_), command_name = (_tmp6_ = _tmp4_, _g_free0 (command_name), _tmp6_), _tmp5_), _g_free0 (line), _tmp7_);
+			command_name = (_tmp4_ = pop_string (&line), _g_free0 (command_name), _tmp4_);
 			if (command_name != NULL) {
 				exec_command (command_name, line);
 			}
@@ -108,7 +105,7 @@ gboolean on_channel (GIOChannel* channel, GIOCondition condition) {
 
 void on_bus_message_eos (void) {
 	g_return_if_fail (pipeline != NULL);
-	gst_element_set_state (pipeline, GST_STATE_NULL);
+	gst_element_set_state ((GstElement*) pipeline, GST_STATE_NULL);
 	exec_command ("exit", NULL);
 }
 
@@ -153,21 +150,34 @@ void exec_command (const char* command_name, const char* line) {
 }
 
 
-char* partition (const char* line, char** head) {
+char* pop_string (char** line) {
 	char* result = NULL;
 	gint parts_length1;
 	gint _parts_size_;
 	char** _tmp1_;
 	char** _tmp0_;
 	char** parts;
-	char* _tmp2_;
-	g_return_val_if_fail (line != NULL, NULL);
-	if (head != NULL) {
-		*head = NULL;
+	char* head;
+	char* tail;
+	char* _tmp4_;
+	if ((*line) == NULL) {
+		result = NULL;
+		return result;
 	}
-	parts = (_tmp1_ = _tmp0_ = g_strsplit (line, " ", 2), parts_length1 = _vala_array_length (_tmp0_), _parts_size_ = parts_length1, _tmp1_);
-	*head = (_tmp2_ = g_strdup (parts[0]), _g_free0 (*head), _tmp2_);
-	result = g_strdup (parts[1]);
+	parts = (_tmp1_ = _tmp0_ = g_strsplit (*line, " ", 2), parts_length1 = _vala_array_length (_tmp0_), _parts_size_ = parts_length1, _tmp1_);
+	head = g_strdup (parts[0]);
+	if (head != NULL) {
+		char* _tmp2_;
+		head = (_tmp2_ = string_strip (head), _g_free0 (head), _tmp2_);
+	}
+	tail = g_strdup (parts[1]);
+	if (tail != NULL) {
+		char* _tmp3_;
+		tail = (_tmp3_ = string_strip (tail), _g_free0 (tail), _tmp3_);
+	}
+	*line = (_tmp4_ = g_strdup (tail), _g_free0 (*line), _tmp4_);
+	result = head;
+	_g_free0 (tail);
 	parts = (_vala_array_free (parts, parts_length1, (GDestroyNotify) g_free), NULL);
 	return result;
 }

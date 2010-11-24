@@ -18,8 +18,8 @@
 
 typedef void (*CommandFunction) (const char* line);
 
-extern GstElement* pipeline;
-GstElement* pipeline = NULL;
+extern GstBin* pipeline;
+GstBin* pipeline = NULL;
 extern GMainLoop* loop;
 GMainLoop* loop = NULL;
 extern char* fifo_path;
